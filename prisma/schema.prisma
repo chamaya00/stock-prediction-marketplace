@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String
+  password      String
+  bio           String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  predictions   Prediction[]
+
+  @@map("users")
+}
+
+model Stock {
+  id          String       @id @default(cuid())
+  symbol      String       @unique
+  name        String
+  sector      String?
+  industry    String?
+  marketCap   Float?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  predictions Prediction[]
+  prices      StockPrice[]
+
+  @@map("stocks")
+}
+
+model Prediction {
+  id                String    @id @default(cuid())
+  userId            String
+  stockId           String
+
+  // Current price at time of prediction
+  currentPrice      Float
+
+  // Predictions for different timeframes (nullable until filled)
+  price7d           Float?
+  price28d          Float?
+  price60d          Float?
+  price90d          Float?
+  price180d         Float?
+  price365d         Float?
+
+  // Target dates for each prediction
+  targetDate7d      DateTime?
+  targetDate28d     DateTime?
+  targetDate60d     DateTime?
+  targetDate90d     DateTime?
+  targetDate180d    DateTime?
+  targetDate365d    DateTime?
+
+  // Actual outcomes (filled when target date is reached)
+  actualPrice7d     Float?
+  actualPrice28d    Float?
+  actualPrice60d    Float?
+  actualPrice90d    Float?
+  actualPrice180d   Float?
+  actualPrice365d   Float?
+
+  // Accuracy metrics (percentage error)
+  accuracy7d        Float?
+  accuracy28d       Float?
+  accuracy60d       Float?
+  accuracy90d       Float?
+  accuracy180d      Float?
+  accuracy365d      Float?
+
+  // Status flags
+  isLocked          Boolean   @default(false)
+  lockedAt          DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock             Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stockId])
+  @@index([createdAt])
+  @@map("predictions")
+}
+
+model StockPrice {
+  id        String   @id @default(cuid())
+  stockId   String
+  date      DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    BigInt
+
+  createdAt DateTime @default(now())
+
+  stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([stockId, date])
+  @@index([stockId])
+  @@index([date])
+  @@map("stock_prices")
+}
