@@ -1,80 +1,81 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { mockPredictions, isDemoMode } from '@/lib/mock-data';
 import Link from 'next/link';
-import { TrendingUp, TrendingDown, Lock, Clock } from 'lucide-react';
+import { Lock, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  // Demo mode - show sample data
+  if (isDemoMode()) {
+    const predictions = mockPredictions.filter(p => p.userId === 'user-1');
+    const stats = {
+      total: predictions.length,
+      locked: predictions.filter(p => p.isLocked).length,
+      pending: predictions.filter(p => !p.isLocked).length,
+    };
 
-  if (!session?.user) {
-    redirect('/auth/signin');
-  }
-
-  const predictions = await prisma.prediction.findMany({
-    where: { userId: session.user.id },
-    include: { stock: true },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const stats = {
-    total: predictions.length,
-    locked: predictions.filter(p => p.isLocked).length,
-    pending: predictions.filter(p => !p.isLocked).length,
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">Welcome back, {session.user.name}!</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <StatCard title="Total Predictions" value={stats.total} icon="📊" />
-          <StatCard title="Locked Predictions" value={stats.locked} icon="🔒" />
-          <StatCard title="Pending Predictions" value={stats.pending} icon="⏳" />
-        </div>
-
-        {/* Call to Action */}
-        <div className="bg-blue-600 text-white rounded-xl p-8 mb-8">
-          <h2 className="text-2xl font-bold mb-2">Make a New Prediction</h2>
-          <p className="mb-4 opacity-90">
-            Select a stock and predict its future price across multiple timeframes
-          </p>
-          <Link
-            href="/predictions/create"
-            className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition"
-          >
-            Create Prediction
-          </Link>
-        </div>
-
-        {/* Recent Predictions */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-6">Your Recent Predictions</h2>
-
-          {predictions.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-lg mb-4">You haven't made any predictions yet</p>
-              <Link
-                href="/predictions/create"
-                className="text-blue-600 hover:underline font-semibold"
-              >
-                Make your first prediction →
-              </Link>
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          {/* Demo Mode Banner */}
+          <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="font-semibold text-blue-900">Demo Mode Active</h3>
+              <p className="text-sm text-blue-800">
+                Viewing placeholder data. Set up a database to use the full app with real data.
+              </p>
             </div>
-          ) : (
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard (Demo)</h1>
+            <p className="text-gray-600">Welcome to the Stock Prediction Marketplace!</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <StatCard title="Total Predictions" value={stats.total} icon="📊" />
+            <StatCard title="Locked Predictions" value={stats.locked} icon="🔒" />
+            <StatCard title="Pending Predictions" value={stats.pending} icon="⏳" />
+          </div>
+
+          <div className="bg-blue-600 text-white rounded-xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-2">Explore the Platform</h2>
+            <p className="mb-4 opacity-90">
+              Browse stocks, view predictions, and check the leaderboard (demo data)
+            </p>
+            <Link
+              href="/predictions/create"
+              className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition"
+            >
+              View Prediction Form
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-6">Sample Predictions</h2>
             <div className="space-y-4">
               {predictions.map((prediction) => (
                 <PredictionCard key={prediction.id} prediction={prediction} />
               ))}
             </div>
-          )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Production - show auth required
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-6 text-center">
+          <p className="text-lg text-yellow-900">
+            Please sign in to view your dashboard
+          </p>
+          <Link href="/auth/signin" className="text-blue-600 hover:underline font-semibold mt-2 inline-block">
+            Sign In →
+          </Link>
         </div>
       </div>
     </div>
