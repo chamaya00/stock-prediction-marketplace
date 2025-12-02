@@ -1,29 +1,23 @@
 import Link from 'next/link';
-import { TrendingUp, Users, Target, Award } from 'lucide-react';
+import { TrendingUp, Users, Target, Award, Rocket } from 'lucide-react';
+import { isDemoMode } from '@/lib/mock-data';
 
 export default function Home() {
+  const isDemo = isDemoMode();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Stock Prediction Marketplace</h1>
+      {/* Demo Mode Banner */}
+      {isDemo && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3">
+          <div className="container mx-auto px-4 flex items-center justify-center gap-3">
+            <Rocket className="h-5 w-5" />
+            <p className="font-semibold">
+              Demo Mode: Viewing with placeholder data. Full features available after database setup.
+            </p>
           </div>
-          <nav className="flex gap-4">
-            <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
-              Dashboard
-            </Link>
-            <Link href="/leaderboard" className="text-gray-600 hover:text-gray-900">
-              Leaderboard
-            </Link>
-            <Link href="/auth/signin" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-              Sign In
-            </Link>
-          </nav>
         </div>
-      </header>
+      )}
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
@@ -36,10 +30,10 @@ export default function Home() {
         </p>
         <div className="flex gap-4 justify-center">
           <Link
-            href="/auth/signup"
+            href="/dashboard"
             className="bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition"
           >
-            Get Started
+            {isDemo ? 'View Demo Dashboard' : 'Get Started'}
           </Link>
           <Link
             href="/leaderboard"
