@@ -93,7 +93,8 @@ export default function PredictionChart({ prediction, stockSymbol }: PredictionC
 
       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
         {chartData.map((data) => {
-          if (data.Actual === null || data.Actual === undefined) return null;
+          if (data.Actual === null || data.Actual === undefined ||
+              data.Predicted === null || data.Predicted === undefined) return null;
 
           const difference = data.Actual - data.Predicted;
           const percentageError = Math.abs((difference / data.Actual) * 100);
