@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     // Verify secret for security
     const secret = request.nextUrl.searchParams.get('secret');
 
-    if (secret !== process.env.CRON_SECRET) {
+    if (secret !== process.env.SETUP_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
