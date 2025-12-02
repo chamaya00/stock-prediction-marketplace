@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create tables using raw SQL
+    // Create tables using raw SQL (one at a time)
     console.log('Creating database tables...');
 
+    // Create users table
     await prisma.$executeRawUnsafe(`
-      -- Create users table
       CREATE TABLE IF NOT EXISTS "users" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "email" TEXT NOT NULL UNIQUE,
@@ -24,9 +24,11 @@ export async function GET(request: NextRequest) {
         "bio" TEXT,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL
-      );
+      )
+    `);
 
-      -- Create stocks table
+    // Create stocks table
+    await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "stocks" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "symbol" TEXT NOT NULL UNIQUE,
@@ -36,9 +38,11 @@ export async function GET(request: NextRequest) {
         "marketCap" DOUBLE PRECISION,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL
-      );
+      )
+    `);
 
-      -- Create predictions table
+    // Create predictions table
+    await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "predictions" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "userId" TEXT NOT NULL,
@@ -71,12 +75,35 @@ export async function GET(request: NextRequest) {
         "isLocked" BOOLEAN NOT NULL DEFAULT false,
         "lockedAt" TIMESTAMP(3),
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL,
-        CONSTRAINT "predictions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-        CONSTRAINT "predictions_stockId_fkey" FOREIGN KEY ("stockId") REFERENCES "stocks"("id") ON DELETE CASCADE ON UPDATE CASCADE
-      );
+        "updatedAt" TIMESTAMP(3) NOT NULL
+      )
+    `);
 
-      -- Create stock_prices table
+    // Add foreign key constraints for predictions
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "predictions"
+      DROP CONSTRAINT IF EXISTS "predictions_userId_fkey"
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "predictions"
+      ADD CONSTRAINT "predictions_userId_fkey"
+      FOREIGN KEY ("userId") REFERENCES "users"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "predictions"
+      DROP CONSTRAINT IF EXISTS "predictions_stockId_fkey"
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "predictions"
+      ADD CONSTRAINT "predictions_stockId_fkey"
+      FOREIGN KEY ("stockId") REFERENCES "stocks"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE
+    `);
+
+    // Create stock_prices table
+    await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "stock_prices" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "stockId" TEXT NOT NULL,
@@ -86,18 +113,34 @@ export async function GET(request: NextRequest) {
         "low" DOUBLE PRECISION NOT NULL,
         "close" DOUBLE PRECISION NOT NULL,
         "volume" BIGINT NOT NULL,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "stock_prices_stockId_fkey" FOREIGN KEY ("stockId") REFERENCES "stocks"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-        UNIQUE ("stockId", "date")
-      );
-
-      -- Create indexes
-      CREATE INDEX IF NOT EXISTS "predictions_userId_idx" ON "predictions"("userId");
-      CREATE INDEX IF NOT EXISTS "predictions_stockId_idx" ON "predictions"("stockId");
-      CREATE INDEX IF NOT EXISTS "predictions_createdAt_idx" ON "predictions"("createdAt");
-      CREATE INDEX IF NOT EXISTS "stock_prices_stockId_idx" ON "stock_prices"("stockId");
-      CREATE INDEX IF NOT EXISTS "stock_prices_date_idx" ON "stock_prices"("date");
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
     `);
+
+    // Add foreign key for stock_prices
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "stock_prices"
+      DROP CONSTRAINT IF EXISTS "stock_prices_stockId_fkey"
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "stock_prices"
+      ADD CONSTRAINT "stock_prices_stockId_fkey"
+      FOREIGN KEY ("stockId") REFERENCES "stocks"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE
+    `);
+
+    // Add unique constraint for stock_prices
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "stock_prices_stockId_date_key"
+      ON "stock_prices"("stockId", "date")
+    `);
+
+    // Create indexes
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "predictions_userId_idx" ON "predictions"("userId")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "predictions_stockId_idx" ON "predictions"("stockId")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "predictions_createdAt_idx" ON "predictions"("createdAt")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "stock_prices_stockId_idx" ON "stock_prices"("stockId")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "stock_prices_date_idx" ON "stock_prices"("date")`);
 
     console.log('Database tables created successfully');
 
