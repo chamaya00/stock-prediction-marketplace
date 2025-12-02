@@ -158,7 +158,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {predictions.map((prediction) => (
+              {predictions.map((prediction: any) => (
                 <PredictionCard key={prediction.id} prediction={prediction} />
               ))}
             </div>
