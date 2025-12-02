@@ -10,21 +10,21 @@ export default function LeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/analysts/leaderboard?timeframe=${timeframe}`);
+        const data = await response.json();
+        setLeaderboard(data.leaderboard || []);
+      } catch (error) {
+        console.error('Failed to fetch leaderboard:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchLeaderboard();
   }, [timeframe]);
-
-  const fetchLeaderboard = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/analysts/leaderboard?timeframe=${timeframe}`);
-      const data = await response.json();
-      setLeaderboard(data.leaderboard || []);
-    } catch (error) {
-      console.error('Failed to fetch leaderboard:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

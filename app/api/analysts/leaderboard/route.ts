@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const userStats = predictions.reduce((acc, pred) => {
+    const userStats = predictions.reduce((acc: Record<string, any>, pred: any) => {
       const userId = pred.user.id;
       const accuracy = (pred as any)[accuracyField];
 
