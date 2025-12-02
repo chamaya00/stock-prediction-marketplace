@@ -118,8 +118,8 @@ export default async function DashboardPage() {
 
   const stats = {
     total: predictions.length,
-    locked: predictions.filter(p => p.isLocked).length,
-    pending: predictions.filter(p => !p.isLocked).length,
+    locked: predictions.filter((p: any) => p.isLocked).length,
+    pending: predictions.filter((p: any) => !p.isLocked).length,
   };
 
   return (
