@@ -104,7 +104,7 @@ async function getFeaturedStockData() {
       stockId: stock.id,
       symbol: stock.symbol,
       name: stock.name,
-      historicalPrices: stock.prices.map((price) => ({
+      historicalPrices: stock.prices.map((price: { date: Date; close: number }) => ({
         date: price.date.toISOString().split('T')[0],
         close: price.close,
       })),
