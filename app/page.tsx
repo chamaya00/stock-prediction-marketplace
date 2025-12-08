@@ -145,7 +145,12 @@ async function getTopAnalysts() {
 
     // Calculate average accuracy for each user
     const analystStats = users
-      .map((user) => {
+      .map((user: {
+        id: string;
+        name: string;
+        email: string;
+        predictions: { accuracy28d: number | null }[];
+      }) => {
         const accuracies = user.predictions
           .map((p) => p.accuracy28d)
           .filter((acc): acc is number => acc !== null);
