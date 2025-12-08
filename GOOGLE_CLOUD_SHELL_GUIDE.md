@@ -32,11 +32,7 @@ git clone https://github.com/chamaya00/stock-prediction-marketplace.git
 cd stock-prediction-marketplace
 ```
 
-Check out your branch:
-
-```bash
-git checkout claude/alphavantage-stock-integration-011jw58G54aDE5xzYHXkpR7K
-```
+**Note:** The integration has been merged to master, so you're already on the right branch.
 
 ---
 
@@ -49,28 +45,12 @@ cat > .env.local << 'EOF'
 # Massive.com API Key
 MASSIVE_API_KEY=xOemxcCL3tf_K7H9sKRr8mWtZnJtAS5M
 
-# Database connection
-DATABASE_URL="YOUR_DATABASE_URL_HERE"
+# Supabase Postgres Database
+DATABASE_URL="postgres://postgres.aqeduhnhzflypquwegdc:b7jv2iR9pOnN2pgk@aws-1-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
 EOF
 ```
 
-**⚠️ IMPORTANT:** Replace `YOUR_DATABASE_URL_HERE` with your actual database URL.
-
-### Where to get your DATABASE_URL:
-
-#### If using Vercel Postgres:
-1. Go to vercel.com on your phone
-2. Navigate to your project → Storage → Your Postgres DB
-3. Tap ".env.local" tab
-4. Copy the `POSTGRES_PRISMA_URL` value
-
-Then run:
-```bash
-# Edit the file to add your real DATABASE_URL
-nano .env.local
-# Use on-screen keyboard to replace YOUR_DATABASE_URL_HERE
-# Press Ctrl+X, then Y, then Enter to save
-```
+**✅ Done!** Your database is already configured with Supabase Postgres.
 
 ---
 
@@ -209,22 +189,21 @@ Google Cloud Shell sessions timeout after **20 minutes of inactivity**. To preve
 ## Quick Command Reference
 
 ```bash
-# Clone and setup
+# Clone repo
 git clone https://github.com/chamaya00/stock-prediction-marketplace.git
 cd stock-prediction-marketplace
-git checkout claude/alphavantage-stock-integration-011jw58G54aDE5xzYHXkpR7K
 
-# Create .env.local (then edit with your DATABASE_URL)
+# Create .env.local with your credentials
 cat > .env.local << 'EOF'
 MASSIVE_API_KEY=xOemxcCL3tf_K7H9sKRr8mWtZnJtAS5M
-DATABASE_URL="your-database-url-here"
+DATABASE_URL="postgres://postgres.aqeduhnhzflypquwegdc:b7jv2iR9pOnN2pgk@aws-1-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
 EOF
 
 # Install and run
 npm install
 npm run populate-prices
 
-# Or run in background
+# Or run in background (recommended)
 nohup npm run populate-prices > populate.log 2>&1 &
 tail -f populate.log
 ```
