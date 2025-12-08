@@ -1,6 +1,37 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+type PredictionData = {
+  price7d: number | null;
+  price28d: number | null;
+  price60d: number | null;
+  price90d: number | null;
+  price180d: number | null;
+  price365d: number | null;
+  targetDate7d: Date | null;
+  targetDate28d: Date | null;
+  targetDate60d: Date | null;
+  targetDate90d: Date | null;
+  targetDate180d: Date | null;
+  targetDate365d: Date | null;
+  createdAt: Date;
+};
+
+type PriceData = {
+  date: Date;
+  close: number;
+};
+
+type StockWithData = {
+  id: string;
+  symbol: string;
+  name: string;
+  sector: string | null;
+  industry: string | null;
+  predictions: PredictionData[];
+  prices: PriceData[];
+};
+
 export async function GET() {
   try {
     // Fetch all stocks with their predictions and historical prices
@@ -39,7 +70,7 @@ export async function GET() {
     });
 
     // Process each stock to calculate aggregate predictions
-    const visualizationData = stocks.map((stock) => {
+    const visualizationData = (stocks as StockWithData[]).map((stock) => {
       // Map to store predictions grouped by target date
       const predictionsByDate = new Map<string, number[]>();
 
