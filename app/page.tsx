@@ -167,7 +167,7 @@ async function getTopAnalysts() {
           predictionCount: accuracies.length,
         };
       })
-      .filter((analyst): analyst is NonNullable<typeof analyst> => analyst !== null)
+      .filter((analyst: { id: string; name: string; email: string; avgAccuracy: number; predictionCount: number } | null): analyst is { id: string; name: string; email: string; avgAccuracy: number; predictionCount: number } => analyst !== null)
       .sort((a, b) => b.avgAccuracy - a.avgAccuracy)
       .slice(0, 10);
 
