@@ -46,7 +46,20 @@ async function getFeaturedStockData() {
     const predictionsByDate = new Map<string, number[]>();
 
     // Process all predictions
-    stock.predictions.forEach((pred) => {
+    stock.predictions.forEach((pred: {
+      price7d: number | null;
+      price28d: number | null;
+      price60d: number | null;
+      price90d: number | null;
+      price180d: number | null;
+      price365d: number | null;
+      targetDate7d: Date | null;
+      targetDate28d: Date | null;
+      targetDate60d: Date | null;
+      targetDate90d: Date | null;
+      targetDate180d: Date | null;
+      targetDate365d: Date | null;
+    }) => {
       const timeframes = [
         { price: pred.price7d, targetDate: pred.targetDate7d },
         { price: pred.price28d, targetDate: pred.targetDate28d },
