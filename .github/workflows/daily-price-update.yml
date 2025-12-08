@@ -1,0 +1,49 @@
+name: Daily Stock Price Update
+
+on:
+  # Run daily at 1:00 AM UTC (after market close)
+  schedule:
+    - cron: '0 1 * * *'
+
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # Generous timeout (should take ~10-20 min)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Update stock prices
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+        run: npm run update-prices
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ Daily price update completed successfully!"
+          echo "📊 All stocks have been updated with the latest available prices."
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "::error::Daily price update failed!"
+          echo "::error::Check the logs above for details."
+          exit 1

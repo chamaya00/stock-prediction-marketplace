@@ -22,8 +22,7 @@ interface DailyOpenClose {
 }
 
 /**
- * Fetch previous day's OHLC data for a single stock
- * API Docs: https://polygon.io/docs/stocks/get_v1_open-close__stocksticker___date
+ * Fetch OHLC data for a single stock on a specific date
  */
 async function fetchDailyOpenClose(symbol: string, date: string): Promise<DailyOpenClose | null> {
   const url = `https://api.polygon.io/v1/open-close/${symbol}/${date}?adjusted=true&apiKey=${MASSIVE_API_KEY}`;
@@ -39,57 +38,138 @@ async function fetchDailyOpenClose(symbol: string, date: string): Promise<DailyO
     // Status might be "NOT_FOUND" for weekends/holidays
     return null;
   } catch (error) {
-    console.error(`   ❌ Error fetching ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+    console.error(`   ❌ Error fetching ${symbol} on ${date}:`, error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
 
 /**
- * Update all stocks with yesterday's closing prices
+ * Get the last trading day (skip weekends)
  */
-async function updateDailyPrices() {
-  console.log('📅 Starting daily price update...\n');
-
-  // Calculate yesterday's date
-  const yesterday = new Date();
+function getLastTradingDay(): Date {
+  const today = new Date();
+  const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // If yesterday was a weekend, find the last trading day (Friday)
   const dayOfWeek = yesterday.getDay();
-  if (dayOfWeek === 0) { // Sunday
+
+  // If yesterday was Sunday (0), go back to Friday
+  if (dayOfWeek === 0) {
     yesterday.setDate(yesterday.getDate() - 2);
-  } else if (dayOfWeek === 6) { // Saturday
+  }
+  // If yesterday was Saturday (6), go back to Friday
+  else if (dayOfWeek === 6) {
     yesterday.setDate(yesterday.getDate() - 1);
   }
 
-  const dateStr = yesterday.toISOString().split('T')[0];
-  console.log(`📊 Fetching prices for: ${dateStr} (${yesterday.toLocaleDateString('en-US', { weekday: 'long' })})\n`);
+  return yesterday;
+}
+
+/**
+ * Get all dates between two dates (inclusive)
+ */
+function getDateRange(startDate: Date, endDate: Date): string[] {
+  const dates: string[] = [];
+  const current = new Date(startDate);
+
+  while (current <= endDate) {
+    const dayOfWeek = current.getDay();
+    // Skip weekends (0 = Sunday, 6 = Saturday)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      dates.push(current.toISOString().split('T')[0]);
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+/**
+ * Smart update: Fetches all missing dates up to the most recent trading day
+ */
+async function updateStockPrices() {
+  console.log('📅 Starting smart daily price update...\n');
+
+  const lastTradingDay = getLastTradingDay();
+  const targetDate = lastTradingDay.toISOString().split('T')[0];
+
+  console.log(`🎯 Target date: ${targetDate} (${lastTradingDay.toLocaleDateString('en-US', { weekday: 'long' })})\n`);
 
   // Fetch all stocks
   const stocks = await prisma.stock.findMany({
+    include: {
+      prices: {
+        orderBy: { date: 'desc' },
+        take: 1
+      }
+    },
     orderBy: { symbol: 'asc' }
   });
 
-  console.log(`📈 Updating ${stocks.length} stocks...\n`);
+  console.log(`📊 Checking ${stocks.length} stocks for missing data...\n`);
 
-  let successCount = 0;
-  let skipCount = 0;
-  let errorCount = 0;
+  let totalUpdated = 0;
+  let totalSkipped = 0;
+  let totalErrors = 0;
+  let stocksProcessed = 0;
 
   for (let i = 0; i < stocks.length; i++) {
     const stock = stocks[i];
     const progress = `[${i + 1}/${stocks.length}]`;
 
-    console.log(`${progress} ${stock.symbol}...`);
+    // Get the latest date we have for this stock
+    const latestPrice = stock.prices[0];
+    const latestDate = latestPrice ? new Date(latestPrice.date) : null;
 
-    try {
-      const data = await fetchDailyOpenClose(stock.symbol, dateStr);
+    let startDate: Date;
 
-      if (!data) {
-        console.log(`   ⚠️  No data (market closed or holiday)`);
-        skipCount++;
-      } else {
-        // Upsert the price data
+    if (!latestDate) {
+      // No data at all - this shouldn't happen after initial population
+      // but just in case, start from 7 days ago
+      startDate = new Date(lastTradingDay);
+      startDate.setDate(startDate.getDate() - 7);
+      console.log(`${progress} ${stock.symbol} - No data found, fetching last 7 days`);
+    } else {
+      // Calculate days since last update
+      const latestDateOnly = new Date(latestDate.toISOString().split('T')[0]);
+      const daysSinceUpdate = Math.floor((lastTradingDay.getTime() - latestDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysSinceUpdate <= 0) {
+        console.log(`${progress} ${stock.symbol} - ✅ Already up to date (${latestDate.toISOString().split('T')[0]})`);
+        totalSkipped++;
+        continue;
+      }
+
+      startDate = new Date(latestDateOnly);
+      startDate.setDate(startDate.getDate() + 1); // Start from day after latest
+
+      console.log(`${progress} ${stock.symbol} - Updating ${daysSinceUpdate} missing days since ${latestDate.toISOString().split('T')[0]}`);
+    }
+
+    // Get all trading days between start and target date
+    const missingDates = getDateRange(startDate, lastTradingDay);
+
+    if (missingDates.length === 0) {
+      console.log(`   ℹ️  No missing dates`);
+      totalSkipped++;
+      continue;
+    }
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    // Fetch each missing date
+    for (const dateStr of missingDates) {
+      try {
+        const data = await fetchDailyOpenClose(stock.symbol, dateStr);
+
+        if (!data) {
+          // Market closed or no data (holiday, etc.)
+          skipCount++;
+          continue;
+        }
+
+        // Insert the price data
         await prisma.stockPrice.upsert({
           where: {
             stockId_date: {
@@ -115,27 +195,45 @@ async function updateDailyPrices() {
           }
         });
 
-        console.log(`   ✓ Close: $${data.close.toFixed(2)}, Volume: ${data.volume.toLocaleString()}`);
         successCount++;
-      }
 
-    } catch (error) {
-      console.error(`   ❌ Error:`, error instanceof Error ? error.message : 'Unknown error');
-      errorCount++;
+        // Rate limit: 5 calls/min = 12 seconds between calls
+        if (missingDates.indexOf(dateStr) < missingDates.length - 1) {
+          await sleep(12000);
+        }
+
+      } catch (error) {
+        console.error(`   ❌ Error fetching ${dateStr}:`, error instanceof Error ? error.message : 'Unknown error');
+        totalErrors++;
+      }
     }
 
-    // Rate limit: 5 calls/min = 12 seconds between calls
-    if (i < stocks.length - 1) {
+    if (successCount > 0) {
+      console.log(`   ✅ Added ${successCount} days, skipped ${skipCount} (holidays/weekends)`);
+      totalUpdated += successCount;
+      stocksProcessed++;
+    } else {
+      console.log(`   ⚠️  No new data available (${skipCount} days were holidays/market closed)`);
+    }
+
+    // Rate limit between stocks (if we're going to the next stock)
+    if (i < stocks.length - 1 && successCount > 0) {
       await sleep(12000);
     }
   }
 
   console.log('\n✅ Daily update complete!\n');
   console.log('📊 Summary:');
-  console.log(`   ✓ Updated: ${successCount} stocks`);
-  console.log(`   ⚠️  Skipped: ${skipCount} stocks (no data)`);
-  console.log(`   ✗ Errors: ${errorCount} stocks`);
-  console.log(`   ⏱️  Time taken: ${Math.round((stocks.length * 12) / 60)} minutes`);
+  console.log(`   📈 Stocks processed: ${stocksProcessed}`);
+  console.log(`   ✅ New prices added: ${totalUpdated}`);
+  console.log(`   ⏭️  Already up to date: ${totalSkipped}`);
+  console.log(`   ❌ Errors: ${totalErrors}`);
+
+  if (totalUpdated > 0) {
+    console.log(`\n🎉 Successfully added ${totalUpdated} new price records!`);
+  } else if (totalSkipped === stocks.length) {
+    console.log(`\n✨ All stocks are already up to date!`);
+  }
 }
 
 /**
@@ -148,7 +246,7 @@ function sleep(ms: number): Promise<void> {
 /**
  * Main execution
  */
-updateDailyPrices()
+updateStockPrices()
   .catch((error) => {
     console.error('❌ Fatal error:', error);
     process.exit(1);

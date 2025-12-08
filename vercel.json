@@ -3,10 +3,6 @@
     {
       "path": "/api/predictions/lock",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/update-prices",
-      "schedule": "0 1 * * *"
     }
   ]
 }
