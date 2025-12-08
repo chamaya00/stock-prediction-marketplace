@@ -24,6 +24,9 @@ export default function Header() {
               <Link href="/predictions/create" className="text-gray-700 hover:text-gray-900 font-medium">
                 New Prediction
               </Link>
+              <Link href="/predictions-view" className="text-gray-700 hover:text-gray-900 font-medium">
+                Predictions
+              </Link>
               <Link href="/leaderboard" className="text-gray-700 hover:text-gray-900 font-medium">
                 Leaderboard
               </Link>
@@ -46,6 +49,9 @@ export default function Header() {
             </>
           ) : (
             <>
+              <Link href="/predictions-view" className="text-gray-700 hover:text-gray-900 font-medium">
+                Predictions
+              </Link>
               <Link href="/leaderboard" className="text-gray-700 hover:text-gray-900 font-medium">
                 Leaderboard
               </Link>
