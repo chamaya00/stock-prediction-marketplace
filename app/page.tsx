@@ -1,9 +1,169 @@
-import Link from 'next/link';
-import { TrendingUp, Users, Target, Award, Rocket } from 'lucide-react';
+import { TrendingUp, Users, Target, Award, Rocket, Trophy } from 'lucide-react';
 import { isDemoMode } from '@/lib/mock-data';
+import { prisma } from '@/lib/prisma';
+import FeaturedStockSection from '@/components/FeaturedStockSection';
 
-export default function Home() {
+// Fetch AMD stock data for featured section
+async function getFeaturedStockData() {
+  try {
+    const stock = await prisma.stock.findUnique({
+      where: { symbol: 'AMD' },
+      include: {
+        predictions: {
+          where: {
+            isLocked: true,
+          },
+          select: {
+            price7d: true,
+            price28d: true,
+            price60d: true,
+            price90d: true,
+            price180d: true,
+            price365d: true,
+            targetDate7d: true,
+            targetDate28d: true,
+            targetDate60d: true,
+            targetDate90d: true,
+            targetDate180d: true,
+            targetDate365d: true,
+          },
+        },
+        prices: {
+          orderBy: {
+            date: 'asc',
+          },
+          select: {
+            date: true,
+            close: true,
+          },
+        },
+      },
+    });
+
+    if (!stock) return null;
+
+    // Map to store predictions grouped by target date
+    const predictionsByDate = new Map<string, number[]>();
+
+    // Process all predictions
+    stock.predictions.forEach((pred) => {
+      const timeframes = [
+        { price: pred.price7d, targetDate: pred.targetDate7d },
+        { price: pred.price28d, targetDate: pred.targetDate28d },
+        { price: pred.price60d, targetDate: pred.targetDate60d },
+        { price: pred.price90d, targetDate: pred.targetDate90d },
+        { price: pred.price180d, targetDate: pred.targetDate180d },
+        { price: pred.price365d, targetDate: pred.targetDate365d },
+      ];
+
+      timeframes.forEach(({ price, targetDate }) => {
+        if (price && targetDate) {
+          const dateKey = targetDate.toISOString().split('T')[0];
+          if (!predictionsByDate.has(dateKey)) {
+            predictionsByDate.set(dateKey, []);
+          }
+          predictionsByDate.get(dateKey)!.push(price);
+        }
+      });
+    });
+
+    // Calculate percentiles for each date
+    const futurePredictions = Array.from(predictionsByDate.entries())
+      .map(([dateKey, predictions]) => {
+        const sorted = [...predictions].sort((a, b) => a - b);
+        const n = sorted.length;
+
+        const p5 = sorted[Math.floor(n * 0.05)] || sorted[0];
+        const p50 = sorted[Math.floor(n * 0.5)] || sorted[Math.floor(n / 2)];
+        const p95 = sorted[Math.floor(n * 0.95)] || sorted[n - 1];
+
+        return {
+          date: dateKey,
+          p5,
+          p50,
+          p95,
+          count: n,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      stockId: stock.id,
+      symbol: stock.symbol,
+      name: stock.name,
+      historicalPrices: stock.prices.map((price) => ({
+        date: price.date.toISOString().split('T')[0],
+        close: price.close,
+      })),
+      futurePredictions,
+      predictionCount: stock.predictions.length,
+    };
+  } catch (error) {
+    console.error('Error fetching featured stock data:', error);
+    return null;
+  }
+}
+
+// Fetch top 10 analysts by 28-day accuracy
+async function getTopAnalysts() {
+  try {
+    const twentyEightDaysAgo = new Date();
+    twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+
+    // Get all users with their predictions from the last 28 days
+    const users = await prisma.user.findMany({
+      include: {
+        predictions: {
+          where: {
+            isLocked: true,
+            createdAt: {
+              gte: twentyEightDaysAgo,
+            },
+            accuracy28d: {
+              not: null,
+            },
+          },
+          select: {
+            accuracy28d: true,
+          },
+        },
+      },
+    });
+
+    // Calculate average accuracy for each user
+    const analystStats = users
+      .map((user) => {
+        const accuracies = user.predictions
+          .map((p) => p.accuracy28d)
+          .filter((acc): acc is number => acc !== null);
+
+        if (accuracies.length === 0) return null;
+
+        const avgAccuracy = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avgAccuracy: 100 - Math.abs(avgAccuracy), // Convert error to accuracy percentage
+          predictionCount: accuracies.length,
+        };
+      })
+      .filter((analyst): analyst is NonNullable<typeof analyst> => analyst !== null)
+      .sort((a, b) => b.avgAccuracy - a.avgAccuracy)
+      .slice(0, 10);
+
+    return analystStats;
+  } catch (error) {
+    console.error('Error fetching top analysts:', error);
+    return [];
+  }
+}
+
+export default async function Home() {
   const isDemo = isDemoMode();
+  const featuredStock = await getFeaturedStockData();
+  const topAnalysts = await getTopAnalysts();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -28,21 +188,73 @@ export default function Home() {
           Make predictions on S&P 500 stocks and prove your forecasting accuracy.
           Track your performance and compete with other analysts.
         </p>
-        <div className="flex gap-4 justify-center">
-          <Link
-            href="/dashboard"
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition"
-          >
-            {isDemo ? 'View Demo Dashboard' : 'Get Started'}
-          </Link>
-          <Link
-            href="/leaderboard"
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg text-lg font-semibold border-2 border-blue-600 hover:bg-blue-50 transition"
-          >
-            View Leaderboard
-          </Link>
-        </div>
       </section>
+
+      {/* Featured Stock */}
+      {featuredStock && <FeaturedStockSection stockData={featuredStock} />}
+
+      {/* Top Analysts */}
+      {topAnalysts.length > 0 && (
+        <section className="container mx-auto px-4 py-16">
+          <div className="flex items-center gap-3 mb-6">
+            <Trophy className="h-8 w-8 text-yellow-600" />
+            <h3 className="text-3xl font-bold text-gray-900">Top Analysts</h3>
+          </div>
+          <p className="text-gray-600 mb-6">
+            Leading analysts by accuracy over the last 28 days
+          </p>
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Rank
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Analyst
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Accuracy
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Predictions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {topAnalysts.map((analyst, index) => (
+                    <tr key={analyst.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {index === 0 && <Trophy className="h-5 w-5 text-yellow-500 mr-2" />}
+                          {index === 1 && <Trophy className="h-5 w-5 text-gray-400 mr-2" />}
+                          {index === 2 && <Trophy className="h-5 w-5 text-amber-700 mr-2" />}
+                          <span className="text-sm font-medium text-gray-900">#{index + 1}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{analyst.name}</div>
+                        <div className="text-sm text-gray-500">{analyst.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="text-sm font-semibold text-green-600">
+                            {analyst.avgAccuracy.toFixed(2)}%
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {analyst.predictionCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Features */}
       <section className="container mx-auto px-4 py-16">
