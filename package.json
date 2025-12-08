@@ -14,8 +14,7 @@
     "db:seed": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} prisma/seed.ts",
     "populate-prices": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} scripts/populate-historical-prices.ts",
     "update-prices": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} scripts/update-daily-prices.ts",
-    "test-api": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} scripts/test-massive-api.ts",
-    "verify-db": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} scripts/verify-population.ts"
+    "test-api": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} scripts/test-massive-api.ts"
   },
   "dependencies": {
     "next": "^14.2.0",
