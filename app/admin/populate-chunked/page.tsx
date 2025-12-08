@@ -143,7 +143,7 @@ export default function AdminPopulateChunkedPage() {
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h2 className="font-semibold text-blue-900 mb-2">ℹ️ How This Works</h2>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Processes <strong>one stock at a time</strong> to fit Vercel's 10-second limit</li>
+              <li>• Processes <strong>one stock at a time</strong> to fit Vercel&apos;s 10-second limit</li>
               <li>• Takes approximately <strong>10-13 minutes total</strong> (50 stocks × 13 seconds)</li>
               <li>• Respects Massive.com rate limits (5 calls/minute)</li>
               <li>• Progress saved in database - you can pause and resume!</li>
