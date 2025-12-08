@@ -241,7 +241,7 @@ export default async function Home() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {topAnalysts.map((analyst, index) => (
+                  {topAnalysts.map((analyst: { id: string; name: string; email: string; avgAccuracy: number; predictionCount: number }, index: number) => (
                     <tr key={analyst.id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
