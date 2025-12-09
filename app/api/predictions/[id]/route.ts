@@ -5,9 +5,12 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Await params to handle both Next.js 14 and 15
+    const resolvedParams = await Promise.resolve(params);
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -18,7 +21,7 @@ export async function GET(
     }
 
     const prediction = await prisma.prediction.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         stock: true,
         user: {
@@ -59,9 +62,12 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Await params to handle both Next.js 14 and 15
+    const resolvedParams = await Promise.resolve(params);
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -72,7 +78,7 @@ export async function DELETE(
     }
 
     const prediction = await prisma.prediction.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     });
 
     if (!prediction) {
@@ -97,7 +103,7 @@ export async function DELETE(
     }
 
     await prisma.prediction.delete({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     });
 
     return NextResponse.json(
