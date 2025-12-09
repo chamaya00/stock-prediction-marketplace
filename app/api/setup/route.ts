@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // This endpoint should be removed after initial setup
 export async function GET(request: NextRequest) {
   try {
