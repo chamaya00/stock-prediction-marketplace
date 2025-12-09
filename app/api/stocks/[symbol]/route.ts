@@ -3,11 +3,14 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> | { symbol: string } }
 ) {
   try {
+    // Await params to handle both Next.js 14 and 15
+    const resolvedParams = await Promise.resolve(params);
+
     const stock = await prisma.stock.findUnique({
-      where: { symbol: params.symbol },
+      where: { symbol: resolvedParams.symbol },
       include: {
         predictions: {
           include: {
