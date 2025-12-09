@@ -10,6 +10,7 @@ export default function CreatePredictionPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStock, setSelectedStock] = useState<any>(null);
   const [currentPrice, setCurrentPrice] = useState('');
+  const [priceDate, setPriceDate] = useState('');
   const [predictions, setPredictions] = useState({
     price7d: '',
     price28d: '',
@@ -21,6 +22,7 @@ export default function CreatePredictionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showStockList, setShowStockList] = useState(false);
+  const [loadingPrice, setLoadingPrice] = useState(false);
 
   useEffect(() => {
     fetchStocks();
@@ -29,8 +31,8 @@ export default function CreatePredictionPage() {
   const fetchStocks = async (search?: string) => {
     try {
       const url = search
-        ? `/api/stocks?search=${encodeURIComponent(search)}&limit=20`
-        : '/api/stocks?limit=50';
+        ? `/api/stocks?search=${encodeURIComponent(search)}&limit=20&withPrices=true`
+        : '/api/stocks?limit=50&withPrices=true';
       const response = await fetch(url);
       const data = await response.json();
       setStocks(data.stocks || []);
@@ -49,10 +51,36 @@ export default function CreatePredictionPage() {
     }
   };
 
-  const handleStockSelect = (stock: any) => {
+  const handleStockSelect = async (stock: any) => {
     setSelectedStock(stock);
     setSearchTerm(`${stock.symbol} - ${stock.name}`);
     setShowStockList(false);
+
+    // Fetch the most recent price for this stock
+    setLoadingPrice(true);
+    try {
+      const response = await fetch(`/api/stocks/${stock.symbol}`);
+      const data = await response.json();
+
+      if (data.stock && data.stock.prices && data.stock.prices.length > 0) {
+        const mostRecentPrice = data.stock.prices[0];
+        setCurrentPrice(mostRecentPrice.close.toString());
+        setPriceDate(new Date(mostRecentPrice.date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }));
+      } else {
+        setCurrentPrice('');
+        setPriceDate('');
+        setError('No price data available for this stock');
+      }
+    } catch (error) {
+      console.error('Failed to fetch stock price:', error);
+      setError('Failed to fetch current price');
+    } finally {
+      setLoadingPrice(false);
+    }
   };
 
   const handlePredictionChange = (timeframe: string, value: string) => {
@@ -69,7 +97,7 @@ export default function CreatePredictionPage() {
     }
 
     if (!currentPrice || parseFloat(currentPrice) <= 0) {
-      setError('Please enter a valid current price');
+      setError('Unable to fetch current price for the selected stock. Please try selecting a different stock.');
       return;
     }
 
@@ -183,17 +211,27 @@ export default function CreatePredictionPage() {
           {/* Current Price */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Current Price (at time of prediction) *
+              {priceDate ? `Last Closing Price (as of ${priceDate})` : 'Last Closing Price'} *
             </label>
-            <input
-              type="number"
-              step="0.01"
-              value={currentPrice}
-              onChange={(e) => setCurrentPrice(e.target.value)}
-              placeholder="150.00"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
+            {loadingPrice ? (
+              <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                Loading price...
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={currentPrice ? `$${parseFloat(currentPrice).toFixed(2)}` : ''}
+                readOnly
+                placeholder="Select a stock to see its price"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
+                required
+              />
+            )}
+            {selectedStock && currentPrice && (
+              <p className="mt-2 text-sm text-gray-600">
+                This price is automatically populated from our database and cannot be edited.
+              </p>
+            )}
           </div>
 
           {/* Predictions */}

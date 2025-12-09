@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     // Production mode
     const sector = searchParams.get('sector');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const withPrices = searchParams.get('withPrices') === 'true';
 
     const where = {
       ...(search && {
@@ -36,6 +37,11 @@ export async function GET(request: NextRequest) {
         ],
       }),
       ...(sector && { sector }),
+      ...(withPrices && {
+        prices: {
+          some: {},
+        },
+      }),
     };
 
     const stocks = await prisma.stock.findMany({
