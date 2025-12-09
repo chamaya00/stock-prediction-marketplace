@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mockStocks, isDemoMode } from '@/lib/mock-data';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
